@@ -1,6 +1,4 @@
-package com.luxu;
-
-import java.util.Arrays;
+package com.luxu.leetcode;
 
 /**
  * Created by xulu on 2017/8/25.

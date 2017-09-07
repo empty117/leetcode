@@ -1,4 +1,4 @@
-package com.luxu;
+package com.luxu.leetcode;
 
 import com.luxu.leetcode.util.TreeNode;
 
