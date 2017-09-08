@@ -1,2 +1,5 @@
 # leetcode
-leetcode answers, this project is used to record the answers and thinkings for each leetcode item
+This project is recording answers and thinkings on [leetcode](https://leetcode.com/).
+
+- Accepted answers for items.
+- Best java practise for basic algorithm and problems.
