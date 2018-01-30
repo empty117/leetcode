@@ -19,12 +19,14 @@ public class MyContainer implements Container {
         this.beanKeys = new ConcurrentHashMap();
     }
 
+    @Override
     public <T> T getBean(Class<T> clazz) {
         String name = clazz.getName();
         Object object = beans.get(name);
         return object==null?null:(T)object;
     }
 
+    @Override
     public Object registerBean(Class<?> clazz) throws IllegalAccessException, InstantiationException {
         String name = clazz.getName();
         beanKeys.put(name,name);
@@ -40,6 +42,7 @@ public class MyContainer implements Container {
         return bean;
     }
 
+    @Override
     public void initWired() {
         beans.forEach((k,v) -> {
             injection(v);

@@ -17,7 +17,7 @@ public class IoCTest {
         container.registerBean(IoCTest.class);
         container.initWired();
         IoCTest ioCTest = container.getBean(IoCTest.class);
-        ioCTest.claire.cry();
+        ioCTest.test();
 //        Mouth mouth = container.getBean(Mouth.class);
 //        mouth.cry();
     }

@@ -9,4 +9,16 @@ public class ListNode {
     public ListNode(int x){
         val = x;
     }
+
+    @Override
+    public String toString(){
+        StringBuilder sb = new StringBuilder(val+"");
+        ListNode node = next;
+        while (node!=null){
+            sb.append("->");
+            sb.append(node.val);
+            node = node.next;
+        }
+        return sb.toString();
+    }
 }

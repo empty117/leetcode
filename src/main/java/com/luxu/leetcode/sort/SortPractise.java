@@ -61,34 +61,6 @@ public class SortPractise {
         quickSort(data,0,data.length-1);
     }
 
-//    private void quickSort(int[] data, int left, int right){
-//        int key;
-//        if(left<right){
-//            key = partition(data,left,right);
-//            quickSort(data,left,key-1);
-//            quickSort(data,key+1,right);
-//        }
-//    }
-//
-//    private int partition(int[] data, int left, int right) {
-//        int pivot = data[left];
-//        while(left < right){
-//            for(;left<right;right--){
-//                if(data[right]<pivot){
-//                    break;
-//                }
-//            }
-//            data[left]=data[right];
-//            for(;left<right;left++){
-//                if(data[left]>pivot){
-//                    break;
-//                }
-//            }
-//            data[right]=data[left];
-//        }
-//        data[left]=pivot;
-//        return left;
-//    }
     private void quickSort(int[] data, int start, int end){
         int pivot;
         if(start<end){

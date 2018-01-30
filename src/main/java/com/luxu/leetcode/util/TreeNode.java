@@ -1,7 +1,5 @@
 package com.luxu.leetcode.util;
 
-import sun.reflect.generics.tree.Tree;
-
 /**
  * Created by xulu on 2016/12/23.
  */
