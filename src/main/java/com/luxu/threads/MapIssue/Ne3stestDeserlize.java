@@ -1,4 +1,4 @@
-package com.luxu.threads;
+package com.luxu.threads.MapIssue;
 
 import java.io.FileInputStream;
 import java.io.IOException;

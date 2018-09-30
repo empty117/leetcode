@@ -1,4 +1,4 @@
-package com.luxu.threads;
+package com.luxu.threads.MapIssue;
 
 import java.io.*;
 import java.util.HashMap;
@@ -41,7 +41,27 @@ public class Ne3stest {
         info = newInfo;
     }
 
-    public static void main(String[] args){
+    public static void marshallMap(Map<?, ?> map, ObjectOutput out) throws IOException {
+        int mapSize = map.size();
+        writeUnsignedInt(out, mapSize);
+        try {
+            Thread.sleep(50L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if(mapSize != 0) {
+            Iterator i$ = map.entrySet().iterator();
+
+            while(i$.hasNext()) {
+                Map.Entry<?, ?> me = (Map.Entry)i$.next();
+                out.writeObject(me.getKey());
+                out.writeObject(me.getValue());
+            }
+
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
         Ne3stest ne3stest = new Ne3stest();
         pool.submit(new Runnable() {
             @Override
@@ -54,25 +74,7 @@ public class Ne3stest {
                     ObjectOutputStream out = new ObjectOutputStream(fileOut);
                     System.out.println("!!!!!!!!!!!!!!");
 //                    out.writeObject(info);
-                    int mapSize = info.size();
-                    System.out.println("to be write:" +mapSize);
-                    writeUnsignedInt(out, mapSize);
-                    try {
-                        Thread.sleep(50L);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    if(mapSize != 0) {
-                        Iterator i$ = info.entrySet().iterator();
-
-                        while(i$.hasNext()) {
-                            Map.Entry<?, ?> me = (Map.Entry)i$.next();
-                            System.out.println(me.getValue());
-                            out.writeObject(me.getKey());
-                            out.writeObject(me.getValue());
-                        }
-                        System.out.println(info.size());
-                    }
+                    marshallMap(info,out);
                     out.close();
                     fileOut.close();
                     System.out.printf("Serialized data is saved in employee.ser");
@@ -84,20 +86,27 @@ public class Ne3stest {
 
             }
         });
-        pool.submit(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(50L);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+        for(int k=0;k<5;k++){
+            pool.execute(new Runnable() {
+                @Override
+                public void run() {
+//                try {
+//                    Thread.sleep(50L);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+                    for(int i=0;i<50;i++){
+                        System.out.println("add############### " + i);
+//                        info.put("key"+i,"value"+i);
+                                            info.remove("key"+i);
+                    }
                 }
-                for(int i=11;i<50;i++){
-                    System.out.println("add############### " + i);
-//                    info.put("key"+i,"value"+i);
-                    info.remove("key"+i);
-                }
-            }
-        });
+            });
+        }
+
+        Thread.sleep(2000L);
+        System.out.println(info.size());
+        System.out.println(info);
+        pool.shutdown();
     }
 }

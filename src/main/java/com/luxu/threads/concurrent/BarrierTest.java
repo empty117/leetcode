@@ -10,17 +10,14 @@ import java.util.concurrent.CyclicBarrier;
  */
 public class BarrierTest {
     private static final int N = 10;
-    private static final CyclicBarrier barrier = new CyclicBarrier(N);
+    private static final CyclicBarrier barrier = new CyclicBarrier(N-1 );
     static class Worker implements Runnable{
 
         @Override
         public void run() {
             try {
                work();
-               barrier.await();
             } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (BrokenBarrierException e) {
                 e.printStackTrace();
             }
             System.out.println("do something else");
@@ -38,6 +35,7 @@ public class BarrierTest {
         for(int i = 0;i<N;i++){
             new Thread(new BarrierTest.Worker()).start();
         }
+        barrier.getNumberWaiting();
         System.out.println("do final thing");
     }
 }
