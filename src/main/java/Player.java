@@ -3,11 +3,8 @@ import java.util.*;
 /**
  * Bring data on patient samples from the diagnosis machine to the laboratory with enough molecules to produce medicine!
  * TODO:
- * - level的判定
- * - 从lab返回sample或者DIAGNOSIS的判定
- * - 优先生产project需要的type
- * - 拿rank3的临界点
- * - 资源紧张时的策略
+ * - sample排序，按分数还是按project需求?
+ * - 取材料的策略，如果有多个sample需求，则优先取？
  **/
 class Player {
 
@@ -19,12 +16,12 @@ class Player {
     private static int sCount = 0;
     private static Env env = new Env();
     static Project[] projects = new Project[3];
-//    static int limitResource = -1;
+    //从材料台取不够材料
     static boolean giveUp = false;
+    //最少从分析台拿够2个才走
     static int minCarryNumber =2;
 
     static Map<Integer,Sample> sampleInCloud;
-//    static Map<Integer,Sample> sampleInEnemyhand;
 
     private static void setCommand(String cmd){
         if(command.isEmpty()){
@@ -32,16 +29,14 @@ class Player {
         }
     }
 
-    private static int getRequiredNumber(Robot r,Project project){
-        int total = Math.max(project.a - r.expertiseA,0);
-//        System.err.println("total="+total);
-        total += Math.max(project.b - r.expertiseB,0);
-//        System.err.println("total="+total+",project.b="+project.b+",r.expertiseB="+r.expertiseB);
-        total += Math.max(project.c - r.expertiseC,0);
-        total += Math.max(project.d - r.expertiseD,0);
-        total += Math.max(project.e - r.expertiseE,0);
-        return total;
-    }
+//    private static int getRequiredNumber(Robot r,Project project){
+//        int total = Math.max(project.a - r.expertiseA,0);
+//        total += Math.max(project.b - r.expertiseB,0);
+//        total += Math.max(project.c - r.expertiseC,0);
+//        total += Math.max(project.d - r.expertiseD,0);
+//        total += Math.max(project.e - r.expertiseE,0);
+//        return total;
+//    }
 
 
     static Machine getMachine(String location){
@@ -55,7 +50,7 @@ class Player {
     }
     private static int round = 0;
     private static int go = -1;
-    private static class Project{
+    private static class Project implements Comparable<Project>{
         int a,b,c,d,e;
         Project(int a, int b, int c,int d,int e){
             this.a=a;
@@ -69,6 +64,29 @@ class Player {
             return a+b+c+d+e;
         }
 
+        int getTotalRequired(Robot robot){
+            int count =0;
+            for(Type type:Type.types){
+                count += getRequiredNumber(robot,type.value);
+            }
+            return count;
+        }
+
+        int getRequiredNumber(Robot robot,String type){
+            return Math.max(getTypeNumber(type) - robot.getExpertiseByType(type) ,0);
+        }
+
+        int getTypeNumber(String type){
+            switch (type){
+                case "A":return a;
+                case "B":return b;
+                case "C":return c;
+                case "D":return d;
+                case "E":return e;
+            }
+            return 0;
+        }
+
         boolean chose(String type){
             switch (type){
                 case "A":return a>0;
@@ -80,14 +98,9 @@ class Player {
             return false;
         }
 
-        void reduce(String type){
-            switch (type){
-                case "A":if(a>0){a--;} return;
-                case "B":if(b>0){b--;}return;
-                case "C":if(c>0){c--;}return;
-                case "D":if(d>0){d--;}return;
-                case "E":if(e>0){e--;}return;
-            }
+        @Override
+        public int compareTo(Project o) {
+            return getTotalRequired(robot) - o.getTotalRequired(robot);
         }
     }
 
@@ -99,6 +112,25 @@ class Player {
 //            return 1;
 //        }
         return -999;
+    }
+
+    /*
+    优先级最高的project的type 3分
+    优先级第二高的project的type 2分
+    优先级最低的project的type 1分
+     */
+    private static int getProjectRequiredScore(String type){
+        int score =0 ;
+        Arrays.sort(projects);
+        for(int i=0;i<projects.length;i++){
+            int required = projects[i].getRequiredNumber(robot,type);
+            System.err.println("project " + i + "一共需要"+projects[i].getTotalRequired(robot)+"个type，需要"+required+"个type"+type);
+            if(required>0){
+                score+=(3-i);
+            }
+        }
+        System.err.println("project score for type"+type+"="+score );
+        return score;
     }
 
     public static void main(String args[]) {
@@ -153,27 +185,27 @@ class Player {
                 }
 
             }
-            for(int i=0;i<projectCount;i++){
-
-                int total = getRequiredNumber(robot,projects[i]);
-                int enemyTotal = getRequiredNumber(enemy,projects[i]);
-                System.err.println("第"+i+"个project,还差"+total+"个,敌人还差"+enemyTotal+"个");
-                if(go == -1){
-                    if(total<=leftStep() && total<enemyTotal){
-                        System.err.println("我决定冲刺第"+i+"个project,还差"+total+"个,敌人还差"+enemyTotal+"个");
-                        go = i;
-                    }
-                }
-                /*
-                冲刺的project已完成
-                 */
-                else if(total<=0){
-                    go=-1;
-                }
-            }
-            if(go>=0){
-                System.err.println("我正在冲刺第"+go+"个project");
-            }
+//            for(int i=0;i<projectCount;i++){
+//
+//                int total = projects[i].getTotalRequired(robot);
+//                int enemyTotal = projects[i].getTotalRequired(enemy);
+//                System.err.println("第"+i+"个project,还差"+total+"个,敌人还差"+enemyTotal+"个");
+//                if(go == -1){
+//                    if(total<=leftStep() && total<enemyTotal){
+//                        System.err.println("我决定冲刺第"+i+"个project,还差"+total+"个,敌人还差"+enemyTotal+"个");
+//                        go = i;
+//                    }
+//                }
+//                /*
+//                冲刺的project已完成
+//                 */
+//                else if(total<=0){
+//                    go=-1;
+//                }
+//            }
+//            if(go>=0){
+//                System.err.println("我正在冲刺第"+go+"个project");
+//            }
             int availableA = in.nextInt();
             int availableB = in.nextInt();
             int availableC = in.nextInt();
@@ -189,12 +221,10 @@ class Player {
             boolean flag = false;
             String location = robot.location;
             int eta = robot.eta;
-            Machine machine = getMachine(location);
-            System.err.println("Before的命令是:" + command);
             sampleInCloud = new HashMap<>();
             robot.getSamples().clear();
             enemy.getSamples().clear();
-            machine.before();
+            List<Sample> sampleList = new ArrayList<>();
             for (int i = 0; i < sampleCount; i++) {
                 int sampleId = in.nextInt();
                 int carriedBy = in.nextInt();
@@ -217,10 +247,18 @@ class Player {
                 else if(sample.getCarriedBy() == 0){
                     robot.getSamples().put(sampleId,sample);
                 }
-                machine.execute(sample);
+                sampleList.add(sample);
             }
+            Machine machine = getMachine(location);
             System.err.println("robot在"+robot.getLocation()+",距离为"+robot.eta);
             System.err.println("robot持有"+robot.getMoleculeCount()+"个molecule,"+robot.getSamples().size()+"个sample");
+            System.err.println("Before的命令是:" + command);
+            machine.before();
+            sampleList.sort(Sample::compareTo);
+            for(Sample sample: sampleList){
+                System.err.println(sample);
+                machine.execute(sample);
+            }
             System.err.println("Execute的命令是:" + command);
             machine.executeFinal();
             System.err.println("Final的命令是:" + command);
@@ -255,7 +293,6 @@ class Player {
 
         @Override
         public void execute(Sample sample) {
-            System.err.println(sample);
         }
 
         @Override
@@ -265,9 +302,24 @@ class Player {
                 level --;
                 minCarryNumber = 1;
             }
+            //如果没拿满
             if(robot.getSamples().size()<3){
+                //最后几步了，拿起就走
                 if(round>=180 && robot.getSamples().size()>0){
-                    setCommand("GOTO " + DIAGNOSIS);
+                    boolean hasUndiagnosed = false;
+                    for(Sample sample:robot.getSamples().values()){
+                        if(sample.getState() == State.undiagnosed){
+                            hasUndiagnosed = true;
+                            break;
+                        }
+                    }
+                    //有至少一个未分析的
+                    if(hasUndiagnosed){
+                        setCommand("GOTO " + DIAGNOSIS);
+                    }
+                    else{
+                        setCommand("CONNECT " + level);
+                    }
                 }
                 else if(robot.getSamples().size() == 2){
                     //敌人还在拿就先走,抢先一步
@@ -306,7 +358,6 @@ class Player {
 
         @Override
         public void execute(Sample sample) {
-            System.err.println(sample);
             /*
             回来放弃的一定是没有ready的
             可能是拿满了
@@ -360,14 +411,6 @@ class Player {
                     }
                 }
                 else if(sample.isValid() && robot.getSamples().size()<3){
-//                    if(limitResource==0 && sample.getRank()<3){
-//                        if(command.isEmpty()){
-//                            System.err.println("Set limitResource flag to -1");
-//                            limitResource=-1;
-//                        }
-//                        robot.takeFromCloud(sample);
-//
-//                    }
                     //没有冲刺,或者符合冲刺目标
                     if((go<0 || projects[go].chose(sample.getExpertiseGain()))){
                         robot.takeFromCloud(sample);
@@ -406,14 +449,10 @@ class Player {
                 setCommand("GOTO " + MOLECULES);
                 return;
             }
-            for(int i=0;i<robot.getSamples().values().size();i++){
-
-            }
         }
 
         @Override
         public void execute(Sample sample) {
-            System.err.println(sample);
             if(sample.getCarriedBy()==0){
                 //自己是ready了
                 for(Type type: Type.types){
@@ -536,7 +575,6 @@ class Player {
 
         @Override
         public void execute(Sample sample) {
-            System.err.println(sample);
             if(sample.getCarriedBy()==0){
                 if(robot.getRequiredCount(sample.getSampleId()) ==0){
                     robot.produceOnLab(sample.getSampleId());
@@ -549,8 +587,11 @@ class Player {
             if(!command.isEmpty()){
                 return;
             }
-            //如果手头只有一个sample而且分数小于30
-            if(robot.getSamples().size()<=1 &&robot.getTotalHealth()<30){
+            /*
+            如果手头少于一个sample而且分数小于30
+            或者最后几轮手里没sample了
+             */
+            if((robot.getSamples().size()<=1 &&robot.getTotalHealth()<30) || (robot.getSamples().size()==0 && round>=180)){
                 if((enemy.getLocation().equals(MOLECULES)
                         || enemy.getLocation().equals(LABORATORY)
                         || (enemy.getLocation().equals(SAMPLES) && enemy.getEta()>1))
@@ -561,27 +602,31 @@ class Player {
                     setCommand("GOTO " + SAMPLES);
                 }
             }
-            //手上的sample大于30分
+            //手上的sample大于30分或者最后几轮了且手上有至少一个sample
             else{
-                boolean canDo = true;
+                boolean canDo = false;
                 for(Sample sample:robot.getSamples().values()){
-                    boolean typeCanDo = true;
+                    boolean sampleCanDo = true;
                     for(Type type:Type.types){
                         //某个不够
                         int requiredNumber = robot.getRequiredCount(type,sample);
-                        //资源不够，或者总数超过10个
+                        //资源不够，或者总数超过10个,当前sample只要有一个type不够就放弃这个sample
                         if(env.getAvailableCountByType(type)+enemyGoingToRelease(type)<requiredNumber || requiredNumber+robot.getMoleculeCount()>10){
-                            typeCanDo = false;
-                            canDo = typeCanDo;
+                            sampleCanDo = false;
                             break;
                         }
                     }
-                    canDo = canDo || typeCanDo;
+                    //只要有一个sample cando，就可以搞
+                    if(sampleCanDo){
+                        canDo=true;
+                        break;
+                    }
                 }
                 //如果MOLECULES的type可能足够
                 if(canDo){
                     setCommand("GOTO " + MOLECULES);
                 }
+                //优先尝试去DIAGNOSIS取
                 else if((enemy.getLocation().equals(MOLECULES)
                         || enemy.getLocation().equals(LABORATORY)
                         || (enemy.getLocation().equals(SAMPLES) && enemy.getEta()>0))
@@ -759,7 +804,9 @@ class Player {
 
         @Override
         public int compareTo(Sample o) {
-            return - this.getHealth().compareTo(o.getHealth());
+//            return getProjectRequiredScore(o.expertiseGain) - getProjectRequiredScore(expertiseGain);
+
+            return o.health - health;
         }
     }
 
@@ -797,6 +844,17 @@ class Player {
                 case "C":return countC;
                 case "D":return countD;
                 case "E":return countE;
+            }
+            return 0;
+        }
+
+        int getExpertiseByType(String type){
+            switch (type){
+                case "A":return expertiseA;
+                case "B":return expertiseB;
+                case "C":return expertiseC;
+                case "D":return expertiseD;
+                case "E":return expertiseE;
             }
             return 0;
         }
