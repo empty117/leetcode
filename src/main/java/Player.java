@@ -13,6 +13,7 @@ class Player {
     private static String command = "";
     private static int sCount = 0;
     private static Env env = new Env();
+    static int THRESHOLD = 179;
     static Project[] projects = new Project[3];
     //从材料台取不够材料
     static boolean giveUp = false;
@@ -99,7 +100,7 @@ class Player {
         int score;
         int required = chosenProject.getRequiredNumber(robot,type);
         if("ABCDE".contains(type)){
-//            System.err.println("选择的project一共需要"+chosenProject.getTotalRequired(robot)+"个type,需要"+required+"个type"+type);
+            System.err.println("选择的project一共需要"+chosenProject.getTotalRequired(robot)+"个type,需要"+required+"个type"+type);
         }
         score =  required>0?1:0;
         if("ABCDE".contains(type)){
@@ -156,7 +157,9 @@ class Player {
         while (true) {
             command = "";
             round++;
-            minCarryNumber = 2;
+            if(round<THRESHOLD){
+                minCarryNumber = 2;
+            }
             Robot[] robots= new Robot[2];
             for (int i = 0; i < 2; i++) {
                 String target = in.next();
@@ -194,7 +197,6 @@ class Player {
             int availableC = in.nextInt();
             int availableD = in.nextInt();
             int availableE = in.nextInt();
-            System.err.println("availableC="+availableC);
             env.a = availableA;
             env.b = availableB;
             env.c = availableC;
@@ -263,13 +265,24 @@ class Player {
      * 如果取满3个去分析台
      */
     private static class SampleMachine implements Machine{
+
+        private int level;
+
         @Override
         public void before() {
             if(!robot.location.equals(SAMPLES) || robot.eta>0){
                 setCommand("GOTO " + SAMPLES);
             }
+            level = getLevel();
+            if(round >=THRESHOLD){
+                minCarryNumber = 1;
+                if(round > 183){
+                    level = level == 3?2:level;
+                }
+                System.err.println("最后一次拿"+level);
+            }
             if(sCount == 0){
-                setCommand("CONNECT " + getLevel());
+                setCommand("CONNECT " + level);
             }
         }
 
@@ -279,17 +292,10 @@ class Player {
 
         @Override
         public void executeFinal() {
-            int level = getLevel();
-            if(round >=180){
-                minCarryNumber = 1;
-                if(round > 184){
-                    level = level == 3?2:level;
-                }
-            }
             //如果没拿满
             if(robot.getSamples().size()<3){
                 //最后几步了，拿起就走
-                if(round>=180 && robot.getSamples().size()>0){
+                if(round>=THRESHOLD && robot.getSamples().size()>0){
                     boolean hasUndiagnosed = false;
                     for(Sample sample:robot.getSamples().values()){
                         if(sample.getState() == State.undiagnosed){
@@ -387,7 +393,7 @@ class Player {
                 }
                 else if(sample.isStaticValid() && sample.isEnvValid(3) && robot.getSamples().size()<3){
                     //最后几轮了
-                    if(round>180 && robot.getSamples().size()>0){
+                    if(round>THRESHOLD && robot.getSamples().size()>0){
                         return;
                     }
                     robot.takeFromCloud(sample);
@@ -397,7 +403,7 @@ class Player {
 
         @Override
         public void executeFinal() {
-            if(robot.getMoleculeCount()==10 && robot.hasReadySample()){
+            if(robot.getSamples().size() == 1 && robot.getReadySampleNumber()==1){
                 setCommand("GOTO " + LABORATORY);
             }
             /*
@@ -480,7 +486,12 @@ class Player {
                     noReadySamples.add(id);
                 }
             }
-            //Ready Samples:  both ready or either ready?
+            //如果有至少1个 sample ready了
+            if(hasReady){
+                //先尝试防守
+                tryDefend();
+            }
+            //Ready Samples:  任意一个ready了
             //优先拿readySamples需要的
             for(Type type:Type.types){
                 //某个type没有了
@@ -493,24 +504,27 @@ class Player {
                 }
             }
 
-            Set<Type> typeSet = robot.getRequiredTypes(readySamples);
-
-            boolean readySamplesDone = typeSet.size() == 0;
-            System.err.println("readySamples" + readySamples);
-
+            //所有ready Samples都ready
+            boolean allReadySamplesDone = robot.getRequiredCount(readySamples) == 0;
+            System.err.println("has readySample:"+hasReady+",readySamples:" + readySamples+",allReadySamplesDone="+allReadySamplesDone);
 
             /*
             如果ready sample拿不满了
             要么满10个了
             要么资源不够了
              */
-            if(!readySamplesDone){
+            if(hasReady && !allReadySamplesDone){
                 setCommand("GOTO " + LABORATORY);
             }
-            //readySample拿满了，尝试拿没ready的
+
+            /*
+            ready sample拿满了，该继续进攻还是防守?
+             */
             else{
+                //尝试拿没ready的
+                Set<Type> noReadySamplesRequiredTypes = robot.getRequiredTypes(noReadySamples);
                 for(int id:noReadySamples){
-                    for(Type type:typeSet){
+                    for(Type type:noReadySamplesRequiredTypes){
                         if(robot.getRequiredCount(id)>0 && env.getAvailableCountByType(type)>0){
                             robot.takeMolecule(type);
                             break;
@@ -555,13 +569,47 @@ class Player {
                 }
             }
         }
+
+        private void tryDefend() {
+            if(enemy.getLocation().equals(DIAGNOSIS) || enemy.getLocation().equals(MOLECULES)){
+                //敌人可以ready的samples,按照分数高低排序,优先破坏他分数高的
+                List<Sample> enemyPotentialReadySamples = enemyPotentialReadySamples();
+                here:
+                for(Sample sample:enemyPotentialReadySamples){
+                    boolean canReady = enemy.envTypesReadyForSample(sample);
+                    boolean capacityAllowReady = enemy.getRequiredCount(sample) + enemy.getMoleculeCount()<=10;
+                    System.err.println("Sample"+sample.getSampleId()+"可以ready吗？"+canReady+"容量允许ready吗？"+capacityAllowReady);
+                    //无法ready的sample不管
+                    //需求sample拿起来超过10个不管
+                    if(!canReady || !capacityAllowReady){
+                        continue;
+                    }
+                    int space = 10 - robot.getMoleculeCount();
+                    for(Type tt: Type.types){
+                        int required = enemy.getRequiredCount(tt,sample);
+                        if(required<=0){
+                            break;
+                        }
+                        int destryRequired = env.getAvailableCountByType(tt) - required + 1;
+                        //开始破坏
+                        if(space >= destryRequired && enemy.getMoleculeCount()<10){
+                            System.err.println("开始防守,敌人的sample"+sample.getSampleId()+",type="+tt.value());
+                            robot.takeMolecule(tt);
+                            break here;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private static class LabMachine implements Machine{
+
         @Override
         public void before() {
             if(robot.eta>0){
                 setCommand("GOTO " + LABORATORY);
+                return;
             }
         }
 
@@ -569,7 +617,34 @@ class Player {
         public void execute(Sample sample) {
             if(sample.getCarriedBy()==0){
                 if(robot.getRequiredCount(sample.getSampleId()) ==0){
-                    robot.produceOnLab(sample.getSampleId());
+                    /*
+                    防守:
+                    先判断释放了会不会救了敌人
+                    如果会就WAIT
+                     */
+                    boolean pending = false;
+                    if(enemy.getLocation().equals(MOLECULES)){
+                        if(enemy.getReadySampleNumber()==0 && enemy.getSamples().size() == 1){
+                            Sample noReadySample = null;
+                            for(Sample s:enemy.getSamples().values()){
+                                noReadySample = s;
+                                break;
+                            }
+                            for(Type type:Type.types){
+                                //如果当前type没有了，而且敌人需求,敌人可能在等我释放
+                                if(enemy.getRequiredCount(type,noReadySample)>0){
+                                    //如果将要释放的type>=敌人需要的
+                                    if(sample.getCostForRobot(type.value,robot)>= enemy.getRequiredCount(type,noReadySample)){
+                                        pending = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if(!pending){
+                        robot.produceOnLab(sample.getSampleId());
+                    }
                 }
             }
         }
@@ -579,11 +654,17 @@ class Player {
             if(!command.isEmpty()){
                 return;
             }
+            //如果还有readySample会释放则证明自己在防守
+            if(robot.getReadySampleNumber()>0 && robot.score > enemy.score){
+                System.err.println("开始防守");
+                setCommand("WAIT");
+            }
+
             /*
             如果手头少于一个sample而且分数小于30
             或者最后几轮手里没sample了
              */
-            if((robot.getSamples().size()<=1 &&robot.getTotalHealth()<30) || (robot.getSamples().size()==0 && round>=180)){
+            if((robot.getSamples().size()<=1 &&robot.getTotalHealth()<30) || (robot.getSamples().size()==0 && round>=THRESHOLD)){
                 //如何敌人不会竞争cloud里的sample
                 if((enemy.getLocation().equals(MOLECULES)
                         || enemy.getLocation().equals(LABORATORY)
@@ -810,8 +891,9 @@ class Player {
         @Override
         public int compareTo(Sample o) {
             boolean canContributeToChosenProject = false;
-            if(getCarriedBy()==1){
-                return 9999;
+            //敌人的按分数高低排序
+            if(getCarriedBy() == 1 && o.getCarriedBy() == 1){
+                return o.health - health;
             }
             Project chosenProject = getChosenProject();
             //如果需求最少的project只需要2个以下
@@ -831,7 +913,10 @@ class Player {
             }
             if(canContributeToChosenProject){
                 //如果需求少于3个或者分数相等，看需求排序
-                if(chosenProject.getTotalRequired(robot)<4 || o.health == health){
+                if(getLevel()==1
+                        || (chosenProject.getTotalRequired(robot)<4 && round<=140)
+                        || (chosenProject.getTotalRequired(robot)<2 && round<=180)
+                        || o.health == health){
 //                    System.err.println("排序策略是project优先");
                     int result = getChosenProjectRequiredScore(chosenProject,o.expertiseGain) - getChosenProjectRequiredScore(chosenProject,expertiseGain);
                     if(result == 0){
@@ -894,13 +979,14 @@ class Player {
             return 0;
         }
 
-        boolean hasReadySample(){
+        int getReadySampleNumber(){
+            int number =0;
             for(Sample sample:samples.values()){
                 if(getRequiredCount(sample)==0){
-                    return true;
+                    number ++;
                 }
             }
-            return false;
+            return number;
         }
 
         public String getLocation() {
@@ -988,6 +1074,15 @@ class Player {
             return countA+countB+countC+countD+countE;
         }
 
+        boolean envTypesReadyForSample(Sample sample){
+            for(Type type:Type.types){
+                if(env.getAvailableCountByType(type)<getRequiredCount(type,sample)){
+                    return false;
+                }
+            }
+            return true;
+        }
+
 
         public Map<Integer, Sample> getSamples() {
             return samples;
@@ -1058,24 +1153,9 @@ class Player {
             return count;
         }
 
-        public int getRequiredCount(Set<Integer> readySamples,Robot robot){
-            int count =0;
-            for(int id: readySamples){
-                count = count
-                        + samples.get(id).getCostAForRobot(robot)
-                        + samples.get(id).getCostBForRobot(robot)
-                        + samples.get(id).getCostCForRobot(robot)
-                        + samples.get(id).getCostDForRobot(robot)
-                        + samples.get(id).getCostEForRobot(robot);
-                count = count - countA - countB - countC - countD - countE;
-            }
-            return Math.max(count,0);
-        }
-
 
         public Set<Type> getRequiredTypes(Set<Integer> readySamples){
             Set<Type> typeSet = new HashSet<>();
-            int count =0;
             for(int id: readySamples){
                 if(getRequiredCount(Type.A,id)>0){
                     typeSet.add(Type.A);
@@ -1094,6 +1174,14 @@ class Player {
                 }
             }
             return typeSet;
+        }
+
+        public int getRequiredCount(Set<Integer> readySamples){
+            int count = 0;
+            for(Type type:Type.types){
+                count +=getRequiredCount(type,readySamples);
+            }
+            return count;
         }
 
         /*
@@ -1138,39 +1226,73 @@ class Player {
 
     }
 
-    public static int getLevel() {
-        //小于4
-        if(robot.getExpertise()<4){
+//    public static int getLevel() {
+//        //小于4
+//        if(robot.getExpertise()<4){
+//            return 1;
+//        }
+//        if(robot.getMoleculeCount() == 10 && robot.getReadySampleNumber() == 0){
+//            return 1;
+//        }
+//        //4-6
+//        else if(robot.getExpertise()<=6){
+//            if(robot.countLevel(2)>1){
+//                return 1;
+//            }
+//            return 2;
+//        }
+//        //7-9
+//        else if(robot.getExpertise()<=9){
+//            if(robot.countLevel(3)>=1) {
+//                return 2;
+//            }
+//            else {
+//                return 3;
+//            }
+//        }
+//        //9-11
+//        else if(robot.getExpertise()<=11){
+//            if(robot.countLevel(3)>0){
+//                return 2;
+//            }
+//            else {
+//                return 3;
+//            }
+//        }
+//        else{
+//            if(robot.countLevel(3)>1){
+//                return 2;
+//            }
+//            else {
+//                return 3;
+//            }
+//        }
+//    }
+    static int getLevel() {
+        if(robot.getExpertise()<8){
             return 1;
         }
-        if(robot.getMoleculeCount() == 10 && !robot.hasReadySample()){
+        else if(robot.getMoleculeCount() == 10 && robot.getReadySampleNumber() == 0){
             return 1;
         }
-        //4-6
-        else if(robot.getExpertise()<=6){
+        else if(robot.getExpertise()<=10){
             if(robot.countLevel(2)>1){
                 return 1;
             }
             return 2;
         }
-        //7-9
-        else if(robot.getExpertise()<=9){
-            if(robot.countLevel(3)>=1) {
+        else if(robot.getExpertise()<=13){
+            return 2;
+        }
+        else if(robot.getExpertise()<=15){
+            if(robot.countLevel(3)>1){
                 return 2;
             }
             else {
                 return 3;
             }
         }
-        //9-11
-        else{
-            if(robot.countLevel(3)>=2){
-                return 2;
-            }
-            else {
-                return 3;
-            }
-        }
+        return 3;
     }
 
     static class Env{
@@ -1246,5 +1368,18 @@ class Player {
         }
         System.err.println("敌人可能会释放"+count+"个type"+type.value);
         return count;
+    }
+
+    static List<Sample> enemyPotentialReadySamples(){
+        List<Sample> readySamples = new ArrayList<>();
+        for(Sample sample: enemy.getSamples().values()){
+            if(sample.getState() == State.diagnosed){
+                if(enemy.envTypesReadyForSample(sample)){
+                    readySamples.add(sample);
+                }
+            }
+        }
+        readySamples.sort(Sample::compareTo);
+        return readySamples;
     }
 }
