@@ -19,6 +19,9 @@ class Player {
     //最少从分析台拿够2个才走
     static int minCarryNumber =2;
 
+    //是否开启防守模式
+    static boolean enableDefend = false;
+
     static Map<Integer,Sample> sampleInCloud;
 
     private static void setCommand(String cmd){
@@ -153,9 +156,7 @@ class Player {
         while (true) {
             command = "";
             round++;
-            if(round >=180){
-                minCarryNumber = 1;
-            }
+            minCarryNumber = 2;
             Robot[] robots= new Robot[2];
             for (int i = 0; i < 2; i++) {
                 String target = in.next();
@@ -279,9 +280,11 @@ class Player {
         @Override
         public void executeFinal() {
             int level = getLevel();
-            if(round >=180 && level>1){
-                level --;
+            if(round >=180){
                 minCarryNumber = 1;
+                if(round > 184){
+                    level = level == 3?2:level;
+                }
             }
             //如果没拿满
             if(robot.getSamples().size()<3){
@@ -302,15 +305,6 @@ class Player {
                         setCommand("CONNECT " + level);
                     }
                 }
-//                else if(robot.getSamples().size() == 2){
-//                    //敌人还在拿就先走,抢先一步
-//                    if(round<150 && enemy.getLocation().equals(SAMPLES) && enemy.getEta() == 0 && enemy.getSamples().size()>=2){
-//                        setCommand("GOTO " + DIAGNOSIS);
-//                    }
-//                    else{
-//                        setCommand("CONNECT " + level);
-//                    }
-//                }
                 else{
                     setCommand("CONNECT " + level);
                 }
@@ -410,7 +404,7 @@ class Player {
             如果资源有限，拿不起
             TODO:目前是cloud里至少有2个拿不起，而且最少的type小于2个
              */
-            if(sampleInCloud.size()>=2 && env.getMinAvailable()<2){
+            if(sampleInCloud.size()>=2 && (env.getMinAvailable()< 2)){
                 minCarryNumber = 1;
             }
             if(robot.getSamples().size()>= minCarryNumber){
@@ -839,7 +833,11 @@ class Player {
                 //如果需求少于3个或者分数相等，看需求排序
                 if(chosenProject.getTotalRequired(robot)<4 || o.health == health){
 //                    System.err.println("排序策略是project优先");
-                    return getChosenProjectRequiredScore(chosenProject,o.expertiseGain) - getChosenProjectRequiredScore(chosenProject,expertiseGain);
+                    int result = getChosenProjectRequiredScore(chosenProject,o.expertiseGain) - getChosenProjectRequiredScore(chosenProject,expertiseGain);
+                    if(result == 0){
+                        return o.health - health;
+                    }
+                    return result;
                 }
             }
             //默认按分数排序
