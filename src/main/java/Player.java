@@ -594,6 +594,7 @@ class Player {
                     }
                     //TODO:待优化
                     //敌人卡死，则自己比较傻
+                    //敌人如果判断自己分多,可以死等
                     //看能不能等
                     else{
                         boolean canWait = false;
@@ -684,7 +685,9 @@ class Player {
                                         System.err.println("敌人对于"+sampleForEnemy.sampleId+"需求"+type.value+" " + enemy.getRequiredCount(type,sampleForEnemy)+"个"+",本人即将释放"+sample.getCostForRobot(type.value,robot)+"个");
                                         //如果将要释放的type>=敌人需要的
                                         if(sample.getCostForRobot(type.value,robot)>= enemy.getRequiredCount(type,sampleForEnemy)-env.getAvailableCountByType(type)){
-                                            command = "PENDING";
+                                            if(robot.getReadySampleNumber()>0 && robot.score > enemy.score){
+                                                command = "PENDING";
+                                            }
                                         }
                                     }
                                 }
@@ -718,8 +721,7 @@ class Player {
             System.err.println("command is:"+command);
             System.err.println("robot.getReadySampleNumber()="+robot.getReadySampleNumber()+"robot.core="+robot.score+",enemy.score="+enemy.score);
             //如果还有readySample会释放则证明自己在防守
-            if(command.equals("PENDING") && robot.getReadySampleNumber()>0 && robot.score > enemy.score){
-                System.err.println("开始防守");
+            if(command.equals("PENDING")){
                 command = "WAIT";
             }
             if(!command.isEmpty()){
