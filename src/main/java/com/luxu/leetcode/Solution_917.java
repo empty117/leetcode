@@ -2,28 +2,38 @@ package com.luxu.leetcode;
 
 class Solution_917 {
     public String reverseOnlyLetters(String s) {
+        if(s == null || s.isEmpty()){
+            return s;
+        }
+        char[] chars = s.toCharArray();
         int len = s.length();
-        char[] chars = new char[len];
+
         int i=0,j=len-1;
         while(i<len && j>i){
-           char c = s.charAt(i);
-           if(!Character.isAlphabetic(c)){
-               chars[i] = c;
-           }
-           else{
-               char c1 = s.charAt(j);
-               if(!Character.isAlphabetic(c1)){
-                   chars[j]=c1;
-                   j--;
-                   continue;
-               }
-               chars[i]=s.charAt(j);
-               chars[j]=c;
-               j--;
-           }
-           i++;
+            boolean left=Character.isAlphabetic(chars[i]),right=Character.isAlphabetic(chars[j]);
+            if(left && right){
+                swap(chars,i,j);
+                i++;
+                j--;
+            }
+            else if(!left && right){
+                i++;
+            }
+            else if(left && !right){
+                j--;
+            }
+            else{
+                i++;
+                j--;
+            }
         }
         return String.valueOf(chars);
+    }
+
+    private void swap(char[] chars, int a, int b){
+        char tmp = chars[a];
+        chars[a] = chars[b];
+        chars[b] = tmp;
     }
     public static void main(String[] args){
         String s = "a-bC-dEf-ghIj";

@@ -46,6 +46,8 @@ public class TreeOrders {
         }
     }
 
+
+
     public void postOrderNoRecursion(TreeNode t){
         LinkedList<TreeNode> stack = new LinkedList<>();
         LinkedList<TreeNode> temp = new LinkedList<>();
@@ -124,18 +126,25 @@ public class TreeOrders {
 //        root.right.right = new TreeNode(5);
 
         TreeOrders treeOrders = new TreeOrders();
+        System.out.print("前序:");
         treeOrders.preOrder(root);
         System.out.println();
+        System.out.print("后序:");
         treeOrders.postOrder(root);
         System.out.println();
+        System.out.print("中序:");
         treeOrders.midOrder(root);
         System.out.println();
+        System.out.print("前序:");
         treeOrders.preOrderNoRecursion(root);
         System.out.println();
+        System.out.print("后序:");
         treeOrders.postOrderNoRecursion(root);
         System.out.println();
+        System.out.print("中序:");
         treeOrders.midOrderNoRecursion(root);
         System.out.println();
+        System.out.print("层:");
         treeOrders.levelOrderNoRecursion(root);
         System.out.println();
         System.out.println(treeOrders.getLevel(root));
