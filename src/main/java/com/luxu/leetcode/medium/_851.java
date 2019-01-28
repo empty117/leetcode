@@ -1,4 +1,4 @@
-package com.luxu.leetcode.challenage;
+package com.luxu.leetcode.medium;
 
 import java.util.*;
 
