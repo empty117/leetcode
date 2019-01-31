@@ -1,8 +1,6 @@
 package com.luxu.leetcode.hard;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author xulu
@@ -10,75 +8,109 @@ import java.util.Set;
  */
 public class _850 {
 
-    private int threshold = (int) (Math.pow(2,10) + 7);
-
     public int rectangleArea(int[][] rectangles) {
-        int len = rectangles.length, sum =0, missing = 0;
-        int minx = Integer.MAX_VALUE,miny=Integer.MAX_VALUE,maxx=Integer.MIN_VALUE,maxy=Integer.MIN_VALUE;
-
-        for(int i=0;i < len; i++){
-            minx = Math.min(minx, rectangles[i][0]);
-            miny = Math.min(miny, rectangles[i][1]);
-            maxx = Math.max(maxx,rectangles[i][2]);
-            maxy = Math.max(maxy,rectangles[i][3]);
+        int OPEN = 1, CLOSE = -1;
+        int[][] events = new int[rectangles.length * 2][];
+        Set<Integer> Xvals = new HashSet();
+        int t = 0;
+        for (int[] rec: rectangles) {
+            events[t++] = new int[]{rec[1], OPEN, rec[0], rec[2]};
+            events[t++] = new int[]{rec[3], CLOSE, rec[0], rec[2]};
+            Xvals.add(rec[0]);
+            Xvals.add(rec[2]);
         }
 
-        System.out.println("minx="+minx+",maxx="+maxx+",miny="+miny+",maxy="+maxy);
+        Arrays.sort(events, (a, b) -> Integer.compare(a[0], b[0]));
 
+        Integer[] X = Xvals.toArray(new Integer[0]);
+        //所有点的横坐标排序
+        Arrays.sort(X);
+        System.out.println(Arrays.toString(X));
+        Map<Integer, Integer> Xi = new HashMap();
+        for (int i = 0; i < X.length; ++i){
+            Xi.put(X[i], i);
+        }
+        System.out.println(Xi);
 
-        //遍历每一行
-        for(int y = miny;y<=maxy;y++){
-            //每一行记录横线段
-            Set<Integer> tmp = new HashSet<>();
-            for(int i = 0; i< len;i++){
-                for(int j= rectangles[i][0];j<rectangles[i][2];j++){
-                    if(rectangles[i][1] <= y && rectangles[i][3] >=y){
-                        tmp.add(j);
-                    }
-                }
-            }
-            int tmp_miss= maxx - minx - tmp.size();
-            missing += tmp_miss;
-            System.out.println("第"+y+"行：横线缺少了"+tmp_miss);
+        Node active = new Node(0, X.length - 1, X);
+        long ans = 0;
+        long cur_x_sum = 0;
+        int cur_y = events[0][0];
+
+        for (int[] event: events) {
+            int y = event[0], typ = event[1], x1 = event[2], x2 = event[3];
+            /*
+            events按y坐标升序排列，当type=-1时，则计算面积
+            此时横坐标总线段长度已计算完成,则可统计出指定Y区间的面积
+             */
+            ans += cur_x_sum * (y - cur_y);
+            cur_x_sum = active.update(Xi.get(x1), Xi.get(x2), typ);
+            cur_y = y;
+
         }
 
+        ans %= 1_000_000_007;
+        return (int) ans;
+    }
 
-        //遍历每一列
-        for(int x = minx;x<=maxx;x++){
-            //每一列记录竖线段
-            Set<Integer> tmp = new HashSet<>();
-            for(int i = 0; i< len;i++){
-                for(int j= rectangles[i][1];j<rectangles[i][3];j++){
-                    if(rectangles[i][0] <= x && rectangles[i][2] >=x){
-                        tmp.add(j);
-                    }
-                }
-            }
-            int tmp_miss = maxy - miny - tmp.size();
-            missing += tmp_miss;
-            System.out.println("第"+x+"列：竖线缺少了"+tmp_miss);
+class Node {
+    int start, end;
+    Integer[] X;
+    Node left, right;
+    int count;
+    long total;
+
+    public Node(int start, int end, Integer[] X) {
+        this.start = start;
+        this.end = end;
+        this.X = X;
+        left = null;
+        right = null;
+        count = 0;
+        total = 0;
+    }
+
+    public int getRangeMid() {
+        return start + (end - start) / 2;
+    }
+
+    public Node getLeft() {
+        if (left == null) left = new Node(start, getRangeMid(), X);
+        return left;
+    }
+
+    public Node getRight() {
+        if (right == null) right = new Node(getRangeMid(), end, X);
+        return right;
+    }
+
+    /*
+    赋值时，更新所有左子线段和右子线段
+    线段长度为所有子线段之和
+    如i,j在X的坐标里(原始输入),则认为两点之间有线段
+    重复的点已经被去重，所有子线段无法重复
+    */
+    public long update(int i, int j, int val) {
+        if (i >= j) return 0;
+        if (start == i && end == j) {
+            count += val;
+        } else {
+            getLeft().update(i, Math.min(getRangeMid(), j), val);
+            getRight().update(Math.max(getRangeMid(), i), j, val);
         }
 
-        System.out.println("总共缺了"+ missing +"条线");
-
-        if(missing%2 == 0){
-            missing = missing/2;
-        }
-        else{
-            missing = missing/2 + 1;
-        }
-
-        int total = (maxx - minx) * (maxy - miny);
-
-        total = total  - missing;
+        //open
+        if (count > 0) total = X[end] - X[start];
+        else total = getLeft().total + getRight().total;
 
         return total;
     }
 
-
+}
 
     public static void main(String[] args){
-        int[][] input = {{0,0,2,2},{1,0,2,3},{1,0,8,1},{9,100,100,200}};
+        int[][] input = {{0,0,4,3},{1,0,4,12},{1,0,4,1},{1,9,4,1},{2,5,4,7}};
         System.out.println(new _850().rectangleArea(input));
+//        System.out.println(1 & 5);
     }
 }
