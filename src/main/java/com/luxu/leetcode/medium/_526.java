@@ -24,6 +24,9 @@ public class _526 {
             return;
         }
 
+        /*
+        循环遍历每一个元素,如果遍历到最后一个,则满足
+         */
         for (int i = 1; i <= N; i++) {
             if (used[i] == 0 && (i % pos == 0 || pos % i == 0)) {
                 used[i] = 1;
@@ -31,5 +34,9 @@ public class _526 {
                 used[i] = 0;
             }
         }
+    }
+
+    public static void main(String[] args){
+        new _526().countArrangement(2);
     }
 }
